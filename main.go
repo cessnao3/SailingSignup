@@ -41,8 +41,8 @@ func main() {
 	ctx, client := getGoogleContext(progConfig)
 
 	// Update the forms and calendar items
-	updateGoogleForm(progConfig, db, ctx, client)
-	updateGoogleCalendar(progConfig, db, ctx, client)
+	updatedRaces := updateGoogleForm(progConfig, db, ctx, client)
+	updateGoogleCalendar(progConfig, db, ctx, client, updatedRaces)
 
 	// Update the program time and save the resulting config file
 	progConfig.LastRun = initTime
@@ -85,7 +85,7 @@ func getAllRaces(db *gorm.DB) []*Race {
 	return allRaces
 }
 
-func updateGoogleForm(progConfig ProgramConfig, db *gorm.DB, ctx context.Context, client *http.Client) {
+func updateGoogleForm(progConfig ProgramConfig, db *gorm.DB, ctx context.Context, client *http.Client) map[string]*Race {
 	// Create the forms service to update the form with new races
 	formSrv, err := forms.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
@@ -117,6 +117,8 @@ func updateGoogleForm(progConfig ProgramConfig, db *gorm.DB, ctx context.Context
 
 	responseItems := responses.Responses
 	slices.SortFunc(responseItems, cmpResponse)
+
+	updatedRaces := make(map[string]*Race)
 
 	for _, response := range responseItems {
 		targetUser := &User{
@@ -159,6 +161,10 @@ func updateGoogleForm(progConfig ProgramConfig, db *gorm.DB, ctx context.Context
 				db.Model(targetRace).Association("RC").Clear()
 			} else {
 				log.Fatalf("Unknown action %v", action)
+			}
+
+			if _, exists := updatedRaces[raceName]; !exists {
+				updatedRaces[raceName] = targetRace
 			}
 
 			log.Printf("%s %s for %s - %v\n", targetUser.Email, action, targetRace.Name, raceName)
@@ -210,9 +216,12 @@ func updateGoogleForm(progConfig ProgramConfig, db *gorm.DB, ctx context.Context
 	} else {
 		targetForm = resp.Form
 	}
+
+	// Return the updated races
+	return updatedRaces
 }
 
-func updateGoogleCalendar(progConfig ProgramConfig, db *gorm.DB, ctx context.Context, client *http.Client) {
+func updateGoogleCalendar(progConfig ProgramConfig, db *gorm.DB, ctx context.Context, client *http.Client, updatedRaces map[string]*Race) {
 	// Create the calendar service to update new calendar events
 	calSrv, err := calendar.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
@@ -222,6 +231,10 @@ func updateGoogleCalendar(progConfig ProgramConfig, db *gorm.DB, ctx context.Con
 	allRaces := getAllRaces(db)
 
 	for _, race := range allRaces {
+		if _, raceExists := updatedRaces[race.Name]; !raceExists {
+			continue
+		}
+
 		eventTime := race.Time()
 		eventTime = eventTime.Add(time.Duration(progConfig.eventStartOffset()))
 
