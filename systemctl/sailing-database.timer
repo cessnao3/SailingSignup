@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Sailing Database Periodically
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+Unit=sailing-database.service
+
+[Install]
+WantedBy=timers.target
