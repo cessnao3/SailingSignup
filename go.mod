@@ -4,8 +4,8 @@ go 1.21.3
 
 require (
 	github.com/glebarez/sqlite v1.10.0
-	golang.org/x/oauth2 v0.14.0
-	google.golang.org/api v0.150.0
+	golang.org/x/oauth2 v0.15.0
+	google.golang.org/api v0.153.0
 	gorm.io/gorm v1.25.5
 )
 
@@ -25,15 +25,15 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	go.opencensus.io v0.24.0 // indirect
-	golang.org/x/crypto v0.15.0 // indirect
-	golang.org/x/net v0.18.0 // indirect
-	golang.org/x/sys v0.14.0 // indirect
+	golang.org/x/crypto v0.16.0 // indirect
+	golang.org/x/net v0.19.0 // indirect
+	golang.org/x/sys v0.15.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20231106174013-bbf56f31fb17 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20231127180814-3a041ad873d4 // indirect
 	google.golang.org/grpc v1.59.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
-	modernc.org/libc v1.34.0 // indirect
+	modernc.org/libc v1.37.0 // indirect
 	modernc.org/mathutil v1.6.0 // indirect
 	modernc.org/memory v1.7.2 // indirect
 	modernc.org/sqlite v1.27.0 // indirect
