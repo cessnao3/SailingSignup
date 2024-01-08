@@ -196,7 +196,7 @@ func updateGoogleForm(progConfig ProgramConfig, db *gorm.DB, ctx context.Context
 
 	raceItem.Item.QuestionItem.Question.ChoiceQuestion.Options = newOptions
 
-	resp, err := formSrv.Forms.BatchUpdate(progConfig.FormCode, &forms.BatchUpdateFormRequest{
+	_, err = formSrv.Forms.BatchUpdate(progConfig.FormCode, &forms.BatchUpdateFormRequest{
 		IncludeFormInResponse: false,
 		Requests: []*forms.Request{
 			{
@@ -213,8 +213,6 @@ func updateGoogleForm(progConfig ProgramConfig, db *gorm.DB, ctx context.Context
 
 	if err != nil {
 		log.Fatalf("Unable to update form: %v", err)
-	} else {
-		targetForm = resp.Form
 	}
 
 	// Return the updated races

@@ -35,7 +35,7 @@ func (race Race) Time() time.Time {
 	return t
 }
 
-func (race Race) SetTime(t time.Time) {
+func (race *Race) SetTime(t time.Time) {
 	race.Date = t.Format(time.DateOnly)
 }
 
