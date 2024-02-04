@@ -24,6 +24,18 @@ func getClient(tokFile string, config *oauth2.Config) *http.Client {
 		tok = getTokenFromWeb(config)
 		saveToken(tokFile, tok)
 	}
+
+	tks := config.TokenSource(context.Background(), tok)
+	new_t, err := tks.Token()
+	if err != nil {
+		log.Fatalf("Unable to obtain valid token source: %v", err)
+	}
+
+	if tok != new_t {
+		saveToken(tokFile, new_t)
+		tok = new_t
+	}
+
 	return config.Client(context.Background(), tok)
 }
 

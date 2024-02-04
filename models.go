@@ -27,8 +27,8 @@ type Race struct {
 	Renters []*User `gorm:"many2many:user_rental_races;"`
 }
 
-func (race Race) Time() time.Time {
-	t, err := time.Parse(time.DateOnly, race.Date)
+func (race Race) Time(loc *time.Location) time.Time {
+	t, err := time.ParseInLocation(time.DateOnly, race.Date, loc)
 	if err != nil {
 		panic("unable to convert date to a time object")
 	}

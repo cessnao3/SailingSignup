@@ -19,6 +19,7 @@ type ProgramConfig struct {
 	CalendarCode         string
 	RaceEventDuration    int
 	RaceEventStartOffset int
+	TimeZoneString       string
 }
 
 func (config ProgramConfig) eventDuration() time.Duration {
@@ -27,6 +28,14 @@ func (config ProgramConfig) eventDuration() time.Duration {
 		log.Fatalf("Unable to get duration: %v", err)
 	}
 	return dur
+}
+
+func (config ProgramConfig) timezone() *time.Location {
+	tz, err := time.LoadLocation(config.TimeZoneString)
+	if err != nil {
+		log.Fatalf("Unable to get time zone: %v", err)
+	}
+	return tz
 }
 
 func (config ProgramConfig) eventStartOffset() time.Duration {

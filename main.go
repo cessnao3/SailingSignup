@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -22,6 +23,9 @@ type RaceItem struct {
 }
 
 func main() {
+	forceCalendarUpdate := flag.Bool("force", false, "forces the calendar to update")
+	flag.Parse()
+
 	initTime := time.Now()
 	configFile := "config.json"
 	progConfig, err := readConfig(configFile)
@@ -42,7 +46,7 @@ func main() {
 
 	// Update the forms and calendar items
 	updatedRaces := updateGoogleForm(progConfig, db, ctx, client)
-	updateGoogleCalendar(progConfig, db, ctx, client, updatedRaces)
+	updateGoogleCalendar(progConfig, db, ctx, client, updatedRaces, *forceCalendarUpdate)
 
 	// Update the program time and save the resulting config file
 	progConfig.LastRun = initTime
@@ -187,7 +191,7 @@ func updateGoogleForm(progConfig ProgramConfig, db *gorm.DB, ctx context.Context
 	newOptions := []*forms.Option{}
 
 	for _, race := range allRaces {
-		if race.Time().After(time.Now()) {
+		if race.Time(progConfig.timezone()).After(time.Now()) {
 			newOptions = append(newOptions, &forms.Option{
 				Value: fmt.Sprintf("%s - %s", race.Name, race.Date),
 			})
@@ -219,7 +223,7 @@ func updateGoogleForm(progConfig ProgramConfig, db *gorm.DB, ctx context.Context
 	return updatedRaces
 }
 
-func updateGoogleCalendar(progConfig ProgramConfig, db *gorm.DB, ctx context.Context, client *http.Client, updatedRaces map[string]*Race) {
+func updateGoogleCalendar(progConfig ProgramConfig, db *gorm.DB, ctx context.Context, client *http.Client, updatedRaces map[string]*Race, forceCalendarUpdate bool) {
 	// Create the calendar service to update new calendar events
 	calSrv, err := calendar.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
@@ -229,11 +233,11 @@ func updateGoogleCalendar(progConfig ProgramConfig, db *gorm.DB, ctx context.Con
 	allRaces := getAllRaces(db)
 
 	for _, race := range allRaces {
-		if _, raceExists := updatedRaces[race.Name]; !raceExists {
+		if _, raceExists := updatedRaces[race.Name]; (!raceExists && race.EventID != nil) && !forceCalendarUpdate {
 			continue
 		}
 
-		eventTime := race.Time()
+		eventTime := race.Time(progConfig.timezone())
 		eventTime = eventTime.Add(time.Duration(progConfig.eventStartOffset()))
 
 		cdrStart := calendar.EventDateTime{DateTime: eventTime.Format(time.RFC3339)}
