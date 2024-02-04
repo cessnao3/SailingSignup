@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"slices"
 	"strings"
 	"time"
@@ -30,8 +31,12 @@ func main() {
 	configFile := "config.json"
 	progConfig, err := readConfig(configFile)
 	if err != nil {
-		ProgramConfig{LastRun: time.Now()}.writeConfig(configFile)
-		log.Fatalf("Unable to read config file - new config file written")
+		if _, errf := os.Stat(configFile); errf == nil {
+			log.Fatalf("Unable to read config file %v - will not override existing file %v", err, configFile)
+		} else {
+			ProgramConfig{LastRun: time.Now()}.writeConfig(configFile)
+			log.Fatalf("Unable to read config file %v - new config file written", err)
+		}
 	}
 	log.Printf("Last Run: %s\n", progConfig.LastRun.Format(time.DateTime))
 

@@ -21,3 +21,5 @@ go.work
 # Data Files
 data/
 config.json
+*.sqlite
+*.csv
