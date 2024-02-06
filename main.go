@@ -51,7 +51,33 @@ func main() {
 	ctx, client := getGoogleContext(progConfig)
 
 	// Update the forms and calendar items
-	validEmailList := progConfig.getValidEmails()
+	validEmailList := progConfig.getValidSheetEmails(ctx, client)
+
+	// Create users, and ensure that the name matches the spreadsheet if provided
+	for _, user := range validEmailList {
+		targetUser := &User{
+			Email: user.Email,
+		}
+
+		err := db.Where(targetUser).First(targetUser).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				targetUser.Name = user.Name
+				db.Create(targetUser)
+			} else {
+				log.Fatalf("Database error: %v", err)
+			}
+		} else {
+			targetUser.Name = user.Name
+		}
+
+		db.Save(targetUser)
+	}
+
+	for _, email := range validEmailList {
+		log.Printf("Found Email %v - %v", email.Email, email.Name)
+	}
+
 	forms := []FormConfig{
 		newFormConfig(progConfig.FormCodeRC, "RC", 30, -1, nil),
 		newFormConfig(progConfig.FormCodeRentals, "Renters", 6, 7, &validEmailList),

@@ -1,15 +1,19 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"path"
 	"strings"
 	"time"
 
 	"github.com/glebarez/sqlite"
+	"google.golang.org/api/option"
+	"google.golang.org/api/sheets/v4"
 	"gorm.io/gorm"
 )
 
@@ -23,6 +27,7 @@ type ProgramConfig struct {
 	RaceEventStartOffset int
 	TimeZoneString       string
 	AllowedRenters       int
+	AllowedUsersSheetID  string
 }
 
 func (config ProgramConfig) eventDuration() time.Duration {
@@ -65,10 +70,6 @@ func (config ProgramConfig) tokenFile() string {
 	return path.Join(config.DataFolder, "token.json")
 }
 
-func (config ProgramConfig) emailFile() string {
-	return path.Join(config.DataFolder, "member_emails.txt")
-}
-
 func (config ProgramConfig) openDatabase() *gorm.DB {
 	// Connect to the local database
 	db, err := gorm.Open(sqlite.Open(config.dbFile()), &gorm.Config{})
@@ -109,26 +110,30 @@ func (config ProgramConfig) writeConfig(file string) {
 	}
 }
 
-func (config ProgramConfig) getValidEmails() []string {
-	if _, err := os.Stat(config.emailFile()); err != nil {
-		log.Printf("No email file provided at %v", config.emailFile())
-		os.WriteFile(config.emailFile(), []byte{}, 0644)
-		return []string{}
-	}
+type UserEntry struct {
+	Email string
+	Name  string
+}
 
-	data, err := os.ReadFile(config.emailFile())
+func (config ProgramConfig) getValidSheetEmails(ctx context.Context, client *http.Client) []UserEntry {
+	srv, err := sheets.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
-		log.Fatalf("Unable to read member file %v - %v", config.emailFile(), err)
-	}
-	text := string(data)
-	lines := strings.Split(text, "\n")
-
-	emails := []string{}
-
-	for _, l := range lines {
-		l = strings.TrimSpace(l)
-		emails = append(emails, l)
+		log.Fatalf("Unable to retrieve Sheets client: %v", err)
 	}
 
-	return emails
+	readRange := "A:B"
+	resp, err := srv.Spreadsheets.Values.Get(config.AllowedUsersSheetID, readRange).Do()
+	if err != nil {
+		log.Fatalf("Unable to retrieve data from sheet: %v", err)
+	}
+
+	users := []UserEntry{}
+
+	for _, row := range resp.Values {
+		email := strings.ToLower(strings.TrimSpace(row[0].(string)))
+		name := strings.TrimSpace(row[1].(string))
+		users = append(users, UserEntry{email, name})
+	}
+
+	return users
 }

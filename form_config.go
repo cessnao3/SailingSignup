@@ -11,12 +11,12 @@ type FormConfig struct {
 	FormCode           string
 	TableName          string
 	ShowEntryTimeLimit *time.Duration
-	EmailList          *[]string
+	ValidUserList      *[]UserEntry
 	EntryLimit         int
 }
 
-func newFormConfig(form string, tableName string, lookupDays int, entryLimit int, emailList *[]string) FormConfig {
-	config := FormConfig{form, tableName, nil, emailList, entryLimit}
+func newFormConfig(form string, tableName string, lookupDays int, entryLimit int, validUserList *[]UserEntry) FormConfig {
+	config := FormConfig{form, tableName, nil, validUserList, entryLimit}
 
 	if lookupDays > 0 {
 		limit := new(time.Duration)
@@ -41,12 +41,12 @@ func (config FormConfig) getUserTable(race *Race) *[]*User {
 }
 
 func (config FormConfig) canPerformActionForUser(user *User) bool {
-	if config.EmailList == nil {
+	if config.ValidUserList == nil {
 		return true
 	}
 
-	for _, email := range *config.EmailList {
-		if strings.ToLower(user.Email) == strings.ToLower(email) {
+	for _, validUser := range *config.ValidUserList {
+		if strings.ToLower(user.Email) == strings.ToLower(validUser.Email) {
 			return true
 		}
 	}

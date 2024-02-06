@@ -12,6 +12,7 @@ import (
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/forms/v1"
+	"google.golang.org/api/sheets/v4"
 )
 
 // Retrieve a token, saves the token, then returns the generated client.
@@ -89,7 +90,7 @@ func getGoogleContext(progConfig ProgramConfig) (context.Context, *http.Client) 
 	}
 	// If modifying these scopes, delete your previously saved token.json.
 
-	config, err := google.ConfigFromJSON(b, calendar.CalendarEventsScope, forms.FormsBodyScope, forms.FormsResponsesReadonlyScope)
+	config, err := google.ConfigFromJSON(b, calendar.CalendarEventsScope, forms.FormsBodyScope, forms.FormsResponsesReadonlyScope, sheets.SpreadsheetsReadonlyScope)
 	if err != nil {
 		log.Fatalf("Unable to parse client secret file to config: %v", err)
 	}

@@ -5,7 +5,7 @@ go 1.21.3
 require (
 	github.com/glebarez/sqlite v1.10.0
 	golang.org/x/oauth2 v0.16.0
-	google.golang.org/api v0.161.0
+	google.golang.org/api v0.162.0
 	gorm.io/gorm v1.25.6
 )
 
