@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
+	"golang.org/x/exp/maps"
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
 	"gorm.io/gorm"
@@ -127,13 +128,21 @@ func (config ProgramConfig) getValidSheetEmails(ctx context.Context, client *htt
 		log.Fatalf("Unable to retrieve data from sheet: %v", err)
 	}
 
-	users := []UserEntry{}
+	users := map[string]UserEntry{}
 
 	for _, row := range resp.Values {
 		email := strings.ToLower(strings.TrimSpace(row[0].(string)))
 		name := strings.TrimSpace(row[1].(string))
-		users = append(users, UserEntry{email, name})
+
+		if len(email) == 0 || len(name) == 0 {
+			log.Printf("User field empty for email '%v', '%v'", email, name)
+			continue
+		} else if _, exists := users[email]; !exists {
+			users[email] = UserEntry{email, name}
+		} else {
+			log.Printf("Duplicate entry for email '%v' detected as '%v'", email, name)
+		}
 	}
 
-	return users
+	return maps.Values(users)
 }
