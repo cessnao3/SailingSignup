@@ -79,8 +79,8 @@ func main() {
 	}
 
 	forms := []FormConfig{
-		newFormConfig(progConfig.FormCodeRC, "RC", 30, -1, nil),
-		newFormConfig(progConfig.FormCodeRentals, "Renters", 6, 7, &validEmailList),
+		progConfig.FormRC.toFormConfig(&validEmailList),
+		progConfig.FormRentals.toFormConfig(&validEmailList),
 	}
 
 	updatedRaces := map[string]*Race{}
@@ -352,7 +352,7 @@ func updateGoogleCalendar(progConfig ProgramConfig, db *gorm.DB, ctx context.Con
 			}
 		}
 
-		descriptionText := fmt.Sprintf("%v\n%v\nRentals Remaining: %v", descriptionTextRC, descriptionTextRental, progConfig.AllowedRenters-len(race.Renters))
+		descriptionText := fmt.Sprintf("%v\n%v\nRentals Remaining: %v", descriptionTextRC, descriptionTextRental, progConfig.AllowedRentersCount-len(race.Renters))
 
 		if race.EventID != nil {
 			exisitngEvent, err := calSrv.Events.Get(progConfig.CalendarCode, *race.EventID).Do()

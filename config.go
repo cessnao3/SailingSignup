@@ -21,13 +21,13 @@ import (
 type ProgramConfig struct {
 	LastRun              time.Time
 	DataFolder           string
-	FormCodeRC           string
-	FormCodeRentals      string
+	FormRC               ProgramConfigForm
+	FormRentals          ProgramConfigForm
 	CalendarCode         string
 	RaceEventDuration    int
 	RaceEventStartOffset int
 	TimeZoneString       string
-	AllowedRenters       int
+	AllowedRentersCount  int
 	AllowedUsersSheetID  string
 }
 
@@ -145,4 +145,15 @@ func (config ProgramConfig) getValidSheetEmails(ctx context.Context, client *htt
 	}
 
 	return maps.Values(users)
+}
+
+type ProgramConfigForm struct {
+	FormCode      string
+	TableName     string
+	PrelookupDays int
+	EntryLimit    int
+}
+
+func (form ProgramConfigForm) toFormConfig(users *[]UserEntry) FormConfig {
+	return newFormConfig(form.FormCode, form.TableName).withLookupDays(form.PrelookupDays).withEntryLimit(form.EntryLimit).withValidUserList(users)
 }
