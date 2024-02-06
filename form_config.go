@@ -15,8 +15,8 @@ type FormConfig struct {
 	EntryLimit         int
 }
 
-func newFormConfig(form string, tableName string, lookupDays int, entryLimit int) FormConfig {
-	config := FormConfig{form, tableName, nil, nil, entryLimit}
+func newFormConfig(form string, tableName string, lookupDays int, entryLimit int, emailList *[]string) FormConfig {
+	config := FormConfig{form, tableName, nil, emailList, entryLimit}
 
 	if lookupDays > 0 {
 		limit := new(time.Duration)

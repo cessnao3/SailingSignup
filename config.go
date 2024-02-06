@@ -111,7 +111,8 @@ func (config ProgramConfig) writeConfig(file string) {
 
 func (config ProgramConfig) getValidEmails() []string {
 	if _, err := os.Stat(config.emailFile()); err != nil {
-		log.Fatalf("No email file provided at %v", config.emailFile())
+		log.Printf("No email file provided at %v", config.emailFile())
+		os.WriteFile(config.emailFile(), []byte{}, 0644)
 		return []string{}
 	}
 

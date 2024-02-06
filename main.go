@@ -51,9 +51,10 @@ func main() {
 	ctx, client := getGoogleContext(progConfig)
 
 	// Update the forms and calendar items
+	validEmailList := progConfig.getValidEmails()
 	forms := []FormConfig{
-		newFormConfig(progConfig.FormCodeRC, "RC", 30, -1),
-		newFormConfig(progConfig.FormCodeRentals, "Renters", 6, 7),
+		newFormConfig(progConfig.FormCodeRC, "RC", 30, -1, nil),
+		newFormConfig(progConfig.FormCodeRentals, "Renters", 6, 7, &validEmailList),
 	}
 
 	updatedRaces := map[string]*Race{}
