@@ -51,12 +51,8 @@ func main() {
 	ctx, client := getGoogleContext(progConfig)
 
 	// Update the forms and calendar items
-	rcFormConfig := FormConfig{
-		progConfig.FormCodeRC,
-		"RC",
-		nil,
-	}
-	rcFormConfig.setDurationDays(90)
+	rcFormConfig := newFormConfig(progConfig.FormCodeRC, "RC")
+	rcFormConfig.setDurationDays(30)
 
 	updatedRaces := map[string]*Race{}
 
@@ -108,6 +104,11 @@ type FormConfig struct {
 	FormCode           string
 	TableName          string
 	ShowEntryTimeLimit *time.Duration
+	EmailList          *[]string
+}
+
+func newFormConfig(form string, tableName string) FormConfig {
+	return FormConfig{form, tableName, nil, nil}
 }
 
 func (config *FormConfig) setDurationDays(days int) {
@@ -129,6 +130,20 @@ func (config FormConfig) getUserTable(race *Race) *[]*User {
 	}
 
 	return val.Addr().Interface().(*[]*User)
+}
+
+func (config FormConfig) canPerformActionForUser(user *User) bool {
+	if config.EmailList == nil {
+		return true
+	}
+
+	for _, email := range *config.EmailList {
+		if strings.ToLower(user.Email) == strings.ToLower(email) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func updateGoogleForm(progConfig ProgramConfig, formConfig FormConfig, db *gorm.DB, ctx context.Context, client *http.Client, updatedRaces *map[string]*Race) {
@@ -205,12 +220,14 @@ func updateGoogleForm(progConfig ProgramConfig, formConfig FormConfig, db *gorm.
 				}
 			}
 
-			if action == "signup" {
-				listWithoutUser = append(listWithoutUser, targetUser)
-			} else if action == "cancel" {
-				db.Model(targetRace).Association(formConfig.TableName).Clear()
-			} else {
-				log.Fatalf("Unknown action %v", action)
+			if formConfig.canPerformActionForUser(targetUser) {
+				if action == "signup" {
+					listWithoutUser = append(listWithoutUser, targetUser)
+				} else if action == "cancel" {
+					db.Model(targetRace).Association(formConfig.TableName).Clear()
+				} else {
+					log.Fatalf("Unknown action %v", action)
+				}
 			}
 
 			if updatedRaces != nil {
