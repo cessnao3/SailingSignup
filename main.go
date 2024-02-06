@@ -258,10 +258,12 @@ func updateGoogleForm(progConfig ProgramConfig, formConfig FormConfig, db *gorm.
 
 		if validRaceTime {
 			entryName := fmt.Sprintf("%s - %s", race.Name, race.Date)
+			userList := *formConfig.getUserTable(race)
 
 			if formConfig.EntryLimit >= 0 {
-				userList := formConfig.getUserTable(race)
-				entryName = fmt.Sprintf("%s (%v Remaining)", entryName, formConfig.EntryLimit-len(*userList))
+				entryName = fmt.Sprintf("%s (%v Remaining)", entryName, formConfig.EntryLimit-len(userList))
+			} else {
+				entryName = fmt.Sprintf("%s (%v So Far)", entryName, len(userList))
 			}
 
 			newOptions = append(newOptions, &forms.Option{
