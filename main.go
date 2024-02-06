@@ -168,7 +168,7 @@ func updateGoogleForm(progConfig ProgramConfig, formConfig FormConfig, db *gorm.
 	slices.SortFunc(responseItems, cmpResponse)
 
 	for _, response := range responseItems {
-		userEmail := response.Answers[questionMap["email"]].TextAnswers.Answers[0].Value
+		userEmail := response.RespondentEmail
 		userEmail = strings.ToLower(strings.TrimSpace(userEmail))
 
 		targetUser := &User{
