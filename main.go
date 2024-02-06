@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"reflect"
 	"slices"
 	"strings"
 	"time"
@@ -50,7 +51,16 @@ func main() {
 	ctx, client := getGoogleContext(progConfig)
 
 	// Update the forms and calendar items
-	updatedRaces := updateGoogleForm(progConfig, db, ctx, client)
+	rcFormConfig := FormConfig{
+		progConfig.FormCodeRC,
+		"RC",
+		nil,
+	}
+	rcFormConfig.setDurationDays(90)
+
+	updatedRaces := map[string]*Race{}
+
+	updateGoogleForm(progConfig, rcFormConfig, db, ctx, client, &updatedRaces)
 	updateGoogleCalendar(progConfig, db, ctx, client, updatedRaces, *forceCalendarUpdate)
 
 	// Update the program time and save the resulting config file
@@ -94,14 +104,41 @@ func getAllRaces(db *gorm.DB) []*Race {
 	return allRaces
 }
 
-func updateGoogleForm(progConfig ProgramConfig, db *gorm.DB, ctx context.Context, client *http.Client) map[string]*Race {
+type FormConfig struct {
+	FormCode           string
+	TableName          string
+	ShowEntryTimeLimit *time.Duration
+}
+
+func (config *FormConfig) setDurationDays(days int) {
+	if days > 0 {
+		limit := new(time.Duration)
+		*limit = time.Duration(24 * float64(time.Hour) * float64(days))
+		config.ShowEntryTimeLimit = limit
+	} else {
+		config.ShowEntryTimeLimit = nil
+	}
+}
+
+func (config FormConfig) getUserTable(race *Race) *[]*User {
+	intf := reflect.Indirect(reflect.ValueOf(race))
+
+	val := intf.FieldByName(config.TableName)
+	if val.Type() != reflect.TypeOf([]*User{}) {
+		log.Fatalf("field '%v' not found with valid type - %v", config.TableName, val)
+	}
+
+	return val.Addr().Interface().(*[]*User)
+}
+
+func updateGoogleForm(progConfig ProgramConfig, formConfig FormConfig, db *gorm.DB, ctx context.Context, client *http.Client, updatedRaces *map[string]*Race) {
 	// Create the forms service to update the form with new races
 	formSrv, err := forms.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		log.Fatalf("Unable to retrieve Form client: %v", err)
 	}
 
-	targetForm, err := formSrv.Forms.Get(progConfig.FormCode).Do()
+	targetForm, err := formSrv.Forms.Get(formConfig.FormCode).Do()
 	if err != nil {
 		log.Fatalf("Unable to retrieve Form client: %v", err)
 	}
@@ -119,15 +156,13 @@ func updateGoogleForm(progConfig ProgramConfig, db *gorm.DB, ctx context.Context
 	}
 
 	// Get form responses and link user values
-	responses, err := formSrv.Forms.Responses.List(progConfig.FormCode).Filter(fmt.Sprintf("timestamp > %s", progConfig.LastRun.Format(time.RFC3339))).Do()
+	responses, err := formSrv.Forms.Responses.List(formConfig.FormCode).Filter(fmt.Sprintf("timestamp > %s", progConfig.LastRun.Format(time.RFC3339))).Do()
 	if err != nil {
 		log.Fatalf("Unable to get forms responses: %v", err)
 	}
 
 	responseItems := responses.Responses
 	slices.SortFunc(responseItems, cmpResponse)
-
-	updatedRaces := make(map[string]*Race)
 
 	for _, response := range responseItems {
 		targetUser := &User{
@@ -152,33 +187,41 @@ func updateGoogleForm(progConfig ProgramConfig, db *gorm.DB, ctx context.Context
 				Name: raceName,
 			}
 
-			err := db.Preload("RC").Where(targetRace).First(targetRace).Error
+			err := db.Preload(formConfig.TableName).Where(targetRace).First(targetRace).Error
 			if err != nil {
-				log.Fatalf("Database error: %v", err)
+				if err == gorm.ErrRecordNotFound {
+					log.Printf("No record found for %v", raceName)
+					continue
+				} else {
+					log.Fatalf("Database error: %v", err)
+				}
 			}
 
 			listWithoutUser := []*User{}
-			for _, rc := range targetRace.RC {
-				if rc.ID != targetUser.ID {
-					listWithoutUser = append(listWithoutUser, rc)
+			userTable := formConfig.getUserTable(targetRace)
+			for _, user := range *userTable {
+				if user.ID != targetUser.ID {
+					listWithoutUser = append(listWithoutUser, user)
 				}
 			}
 
 			if action == "signup" {
 				listWithoutUser = append(listWithoutUser, targetUser)
 			} else if action == "cancel" {
-				db.Model(targetRace).Association("RC").Clear()
+				db.Model(targetRace).Association(formConfig.TableName).Clear()
 			} else {
 				log.Fatalf("Unknown action %v", action)
 			}
 
-			if _, exists := updatedRaces[raceName]; !exists {
-				updatedRaces[raceName] = targetRace
+			if updatedRaces != nil {
+				if _, exists := (*updatedRaces)[raceName]; !exists {
+					(*updatedRaces)[raceName] = targetRace
+				}
 			}
 
 			log.Printf("%s %s for %s - %v\n", targetUser.Email, action, targetRace.Name, raceName)
 
-			targetRace.RC = listWithoutUser
+			*userTable = listWithoutUser
 			db.Save(targetRace)
 		}
 
@@ -195,17 +238,30 @@ func updateGoogleForm(progConfig ProgramConfig, db *gorm.DB, ctx context.Context
 
 	newOptions := []*forms.Option{}
 
+	currentTime := time.Now()
+
 	for _, race := range allRaces {
-		if race.Time(progConfig.timezone()).After(time.Now()) {
+		raceTime := race.Time(progConfig.timezone())
+		validRaceTime := raceTime.After(currentTime)
+
+		if formConfig.ShowEntryTimeLimit != nil && validRaceTime {
+			validRaceTime = currentTime.After(raceTime.Add(-*formConfig.ShowEntryTimeLimit))
+		}
+
+		if validRaceTime {
 			newOptions = append(newOptions, &forms.Option{
 				Value: fmt.Sprintf("%s - %s", race.Name, race.Date),
 			})
 		}
 	}
 
+	if len(newOptions) == 0 {
+		newOptions = append(newOptions, &forms.Option{Value: "No Races Available"})
+	}
+
 	raceItem.Item.QuestionItem.Question.ChoiceQuestion.Options = newOptions
 
-	_, err = formSrv.Forms.BatchUpdate(progConfig.FormCode, &forms.BatchUpdateFormRequest{
+	_, err = formSrv.Forms.BatchUpdate(formConfig.FormCode, &forms.BatchUpdateFormRequest{
 		IncludeFormInResponse: false,
 		Requests: []*forms.Request{
 			{
@@ -218,14 +274,11 @@ func updateGoogleForm(progConfig ProgramConfig, db *gorm.DB, ctx context.Context
 		},
 	}).Do()
 
-	log.Printf("Updated Races on Form: %v\n", targetForm.Info.Title)
+	log.Printf("Updated Races on Form for %v: %v\n", formConfig.TableName, targetForm.Info.Title)
 
 	if err != nil {
 		log.Fatalf("Unable to update form: %v", err)
 	}
-
-	// Return the updated races
-	return updatedRaces
 }
 
 func updateGoogleCalendar(progConfig ProgramConfig, db *gorm.DB, ctx context.Context, client *http.Client, updatedRaces map[string]*Race, forceCalendarUpdate bool) {

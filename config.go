@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/glebarez/sqlite"
@@ -15,7 +16,8 @@ import (
 type ProgramConfig struct {
 	LastRun              time.Time
 	DataFolder           string
-	FormCode             string
+	FormCodeRC           string
+	FormCodeRentals      string
 	CalendarCode         string
 	RaceEventDuration    int
 	RaceEventStartOffset int
@@ -62,6 +64,10 @@ func (config ProgramConfig) tokenFile() string {
 	return path.Join(config.DataFolder, "token.json")
 }
 
+func (config ProgramConfig) emailFile() string {
+	return path.Join(config.DataFolder, "member_emails.txt")
+}
+
 func (config ProgramConfig) openDatabase() *gorm.DB {
 	// Connect to the local database
 	db, err := gorm.Open(sqlite.Open(config.dbFile()), &gorm.Config{})
@@ -100,4 +106,27 @@ func (config ProgramConfig) writeConfig(file string) {
 	if err != nil {
 		log.Fatalf("Error during WriteFile(): %v", err)
 	}
+}
+
+func (config ProgramConfig) getValidEmails() []string {
+	if _, err := os.Stat(config.emailFile()); err != nil {
+		log.Fatalf("No email file provided at %v", config.emailFile())
+		return []string{}
+	}
+
+	data, err := os.ReadFile(config.emailFile())
+	if err != nil {
+		log.Fatalf("Unable to read member file %v - %v", config.emailFile(), err)
+	}
+	text := string(data)
+	lines := strings.Split(text, "\n")
+
+	emails := []string{}
+
+	for _, l := range lines {
+		l = strings.TrimSpace(l)
+		emails = append(emails, l)
+	}
+
+	return emails
 }
