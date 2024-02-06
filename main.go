@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/exp/maps"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/forms/v1"
 	"google.golang.org/api/option"
@@ -50,12 +51,19 @@ func main() {
 	ctx, client := getGoogleContext(progConfig)
 
 	// Update the forms and calendar items
-	rcFormConfig := newFormConfig(progConfig.FormCodeRC, "RC")
-	rcFormConfig.setDurationDays(30)
+	forms := []FormConfig{
+		newFormConfig(progConfig.FormCodeRC, "RC", 30, -1),
+		newFormConfig(progConfig.FormCodeRentals, "Renters", 6, 7),
+	}
 
 	updatedRaces := map[string]*Race{}
 
-	updateGoogleForm(progConfig, rcFormConfig, db, ctx, client, &updatedRaces)
+	for _, f := range forms {
+		if len(f.FormCode) > 0 {
+			updateGoogleForm(progConfig, f, db, ctx, client, &updatedRaces)
+		}
+	}
+
 	updateGoogleCalendar(progConfig, db, ctx, client, updatedRaces, *forceCalendarUpdate)
 
 	// Update the program time and save the resulting config file
@@ -133,8 +141,11 @@ func updateGoogleForm(progConfig ProgramConfig, formConfig FormConfig, db *gorm.
 	slices.SortFunc(responseItems, cmpResponse)
 
 	for _, response := range responseItems {
+		userEmail := response.Answers[questionMap["email"]].TextAnswers.Answers[0].Value
+		userEmail = strings.ToLower(strings.TrimSpace(userEmail))
+
 		targetUser := &User{
-			Email: response.Answers[questionMap["email"]].TextAnswers.Answers[0].Value,
+			Email: userEmail,
 		}
 		err := db.Where(targetUser).First(targetUser).Error
 		if err != nil {
@@ -174,7 +185,7 @@ func updateGoogleForm(progConfig ProgramConfig, formConfig FormConfig, db *gorm.
 			}
 
 			if formConfig.canPerformActionForUser(targetUser) {
-				if action == "signup" {
+				if action == "signup" && (formConfig.EntryLimit < 0 || len(listWithoutUser) < formConfig.EntryLimit) {
 					listWithoutUser = append(listWithoutUser, targetUser)
 				} else if action == "cancel" {
 					db.Model(targetRace).Association(formConfig.TableName).Clear()
@@ -219,8 +230,15 @@ func updateGoogleForm(progConfig ProgramConfig, formConfig FormConfig, db *gorm.
 		}
 
 		if validRaceTime {
+			entryName := fmt.Sprintf("%s - %s", race.Name, race.Date)
+
+			if formConfig.EntryLimit >= 0 {
+				userList := formConfig.getUserTable(race)
+				entryName = fmt.Sprintf("%s (%v Remaining)", entryName, formConfig.EntryLimit-len(*userList))
+			}
+
 			newOptions = append(newOptions, &forms.Option{
-				Value: fmt.Sprintf("%s - %s", race.Name, race.Date),
+				Value: entryName,
 			})
 		}
 	}
@@ -271,23 +289,41 @@ func updateGoogleCalendar(progConfig ProgramConfig, db *gorm.DB, ctx context.Con
 		cdrStart := calendar.EventDateTime{DateTime: eventTime.Format(time.RFC3339)}
 		cdrEnd := calendar.EventDateTime{DateTime: eventTime.Add(progConfig.eventDuration()).Format(time.RFC3339)}
 
-		descriptionText := "No RC"
+		descriptionTextRC := "No RC"
 
-		attendees := []*calendar.EventAttendee{}
+		attendees := map[string]*calendar.EventAttendee{}
 		for i, rcUser := range race.RC {
 			newUser := calendar.EventAttendee{
 				Email:       rcUser.Email,
 				DisplayName: rcUser.Name,
 			}
 
-			attendees = append(attendees, &newUser)
+			attendees[newUser.Email] = &newUser
 
 			if i == 0 {
-				descriptionText = fmt.Sprintf("RC: %v", rcUser.Name)
+				descriptionTextRC = fmt.Sprintf("RC: %v", rcUser.Name)
 			} else {
-				descriptionText = fmt.Sprintf("%v, %v", descriptionText, rcUser.Name)
+				descriptionTextRC = fmt.Sprintf("%v, %v", descriptionTextRC, rcUser.Name)
 			}
 		}
+
+		descriptionTextRental := "No Renters"
+		for i, rentalUser := range race.Renters {
+			newUser := calendar.EventAttendee{
+				Email:       rentalUser.Email,
+				DisplayName: rentalUser.Name,
+			}
+
+			attendees[newUser.Email] = &newUser
+
+			if i == 0 {
+				descriptionTextRental = fmt.Sprintf("Renters: %v", rentalUser.Name)
+			} else {
+				descriptionTextRental = fmt.Sprintf("%v, %v", descriptionTextRental, rentalUser.Name)
+			}
+		}
+
+		descriptionText := fmt.Sprintf("%v\n%v\nRentals Remaining: %v", descriptionTextRC, descriptionTextRental, progConfig.AllowedRenters-len(race.Renters))
 
 		if race.EventID != nil {
 			exisitngEvent, err := calSrv.Events.Get(progConfig.CalendarCode, *race.EventID).Do()
@@ -299,7 +335,7 @@ func updateGoogleCalendar(progConfig ProgramConfig, db *gorm.DB, ctx context.Con
 			exisitngEvent.End = &cdrEnd
 			exisitngEvent.Summary = race.Name
 			exisitngEvent.Description = descriptionText
-			exisitngEvent.Attendees = attendees
+			exisitngEvent.Attendees = maps.Values(attendees)
 
 			_, err = calSrv.Events.Update(progConfig.CalendarCode, *race.EventID, exisitngEvent).Do()
 			if err != nil {
@@ -312,8 +348,8 @@ func updateGoogleCalendar(progConfig ProgramConfig, db *gorm.DB, ctx context.Con
 				Start:       &cdrStart,
 				End:         &cdrEnd,
 				Summary:     race.Name,
-				Attendees:   attendees,
-				Description: descriptionText,
+				Attendees:   maps.Values(attendees),
+				Description: descriptionTextRC,
 			}
 			eventResult, err := calSrv.Events.Insert(progConfig.CalendarCode, &newEvent).Do()
 			if err != nil {

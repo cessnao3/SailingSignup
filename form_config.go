@@ -12,20 +12,21 @@ type FormConfig struct {
 	TableName          string
 	ShowEntryTimeLimit *time.Duration
 	EmailList          *[]string
+	EntryLimit         int
 }
 
-func newFormConfig(form string, tableName string) FormConfig {
-	return FormConfig{form, tableName, nil, nil}
-}
+func newFormConfig(form string, tableName string, lookupDays int, entryLimit int) FormConfig {
+	config := FormConfig{form, tableName, nil, nil, entryLimit}
 
-func (config *FormConfig) setDurationDays(days int) {
-	if days > 0 {
+	if lookupDays > 0 {
 		limit := new(time.Duration)
-		*limit = time.Duration(24 * float64(time.Hour) * float64(days))
+		*limit = time.Duration(24 * float64(time.Hour) * float64(lookupDays))
 		config.ShowEntryTimeLimit = limit
 	} else {
 		config.ShowEntryTimeLimit = nil
 	}
+
+	return config
 }
 
 func (config FormConfig) getUserTable(race *Race) *[]*User {
