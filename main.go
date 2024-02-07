@@ -366,6 +366,10 @@ func updateGoogleCalendar(progConfig ProgramConfig, db *gorm.DB, ctx context.Con
 			exisitngEvent.Description = descriptionText
 			exisitngEvent.Attendees = maps.Values(attendees)
 
+			if len(progConfig.RaceLocation) > 0 {
+				exisitngEvent.Location = progConfig.RaceLocation
+			}
+
 			_, err = calSrv.Events.Update(progConfig.CalendarCode, *race.EventID, exisitngEvent).Do()
 			if err != nil {
 				log.Fatalf("Error updating event %v: %v", exisitngEvent.Id, err)
@@ -380,6 +384,11 @@ func updateGoogleCalendar(progConfig ProgramConfig, db *gorm.DB, ctx context.Con
 				Attendees:   maps.Values(attendees),
 				Description: descriptionTextRC,
 			}
+
+			if len(progConfig.RaceLocation) > 0 {
+				newEvent.Location = progConfig.RaceLocation
+			}
+
 			eventResult, err := calSrv.Events.Insert(progConfig.CalendarCode, &newEvent).Do()
 			if err != nil {
 				log.Fatalf("Unable to add calendar event: %v", err)

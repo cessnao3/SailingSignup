@@ -16,7 +16,12 @@ type FormConfig struct {
 }
 
 func newFormConfig(form string, tableName string) FormConfig {
-	return FormConfig{form, tableName, nil, nil, -1}
+	return FormConfig{
+		FormCode:           form,
+		TableName:          tableName,
+		ShowEntryTimeLimit: nil,
+		ValidUserList:      nil,
+		EntryLimit:         -1}
 }
 
 func (config FormConfig) withEntryLimit(entryLimit int) FormConfig {

@@ -88,8 +88,8 @@ func getGoogleContext(progConfig ProgramConfig) (context.Context, *http.Client) 
 	if err != nil {
 		log.Fatalf("Unable to read client secret file: %v", err)
 	}
-	// If modifying these scopes, delete your previously saved token.json.
 
+	// If modifying these scopes, delete your previously saved token.json
 	config, err := google.ConfigFromJSON(b, calendar.CalendarEventsScope, forms.FormsBodyScope, forms.FormsResponsesReadonlyScope, sheets.SpreadsheetsReadonlyScope)
 	if err != nil {
 		log.Fatalf("Unable to parse client secret file to config: %v", err)

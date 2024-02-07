@@ -29,6 +29,7 @@ type ProgramConfig struct {
 	TimeZoneString       string
 	AllowedRentersCount  int
 	AllowedUsersSheetID  string
+	RaceLocation         string
 }
 
 func (config ProgramConfig) eventDuration() time.Duration {
