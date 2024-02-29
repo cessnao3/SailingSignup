@@ -63,7 +63,7 @@ func (config FormConfig) canPerformActionForUser(user *User) bool {
 	}
 
 	for _, validUser := range *config.ValidUserList {
-		if strings.ToLower(user.Email) == strings.ToLower(validUser.Email) {
+		if strings.EqualFold(user.Email, validUser.Email) {
 			return true
 		}
 	}
