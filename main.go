@@ -25,6 +25,8 @@ type RaceItem struct {
 }
 
 func main() {
+	log.SetOutput(os.Stdout)
+
 	forceCalendarUpdate := flag.Bool("force", false, "forces the calendar to update")
 	flag.Parse()
 
