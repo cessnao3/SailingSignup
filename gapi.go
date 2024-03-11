@@ -7,8 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
-	"time"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -23,11 +21,9 @@ func getClient(tokFile string, config *oauth2.Config) *http.Client {
 	// created automatically when the authorization flow completes for the first
 	// time.
 	tok, err := tokenFromFile(tokFile)
-	tok_from_file := true
 	if err != nil {
 		tok = getTokenFromWeb(config)
 		saveToken(tokFile, tok)
-		tok_from_file = false
 	}
 
 	tks := config.TokenSource(context.Background(), tok)
@@ -37,12 +33,6 @@ func getClient(tokFile string, config *oauth2.Config) *http.Client {
 	}
 
 	if tok != new_t {
-		if tok_from_file {
-			fileFolder := filepath.Dir((tokFile))
-			newName := fmt.Sprintf("%v_%v", time.Now().Format("2006-01-02-15-04-05"), filepath.Base(tokFile))
-
-			os.Rename(tokFile, filepath.Join(fileFolder, newName))
-		}
 		saveToken(tokFile, new_t)
 		tok = new_t
 	}
