@@ -189,7 +189,7 @@ func updateGoogleForm(progConfig ProgramConfig, formConfig FormConfig, db *gorm.
 		action := strings.ToLower(response.Answers[questionMap["action"]].TextAnswers.Answers[0].Value)
 
 		for _, raceQuestionText := range response.Answers[raceItem.Item.QuestionItem.Question.QuestionId].TextAnswers.Answers {
-			raceName := strings.TrimSpace(strings.Split(raceQuestionText.Value, "-")[0])
+			raceName := strings.TrimSpace(strings.Split(raceQuestionText.Value, ":")[0])
 
 			targetRace := &Race{
 				Name: raceName,
@@ -259,7 +259,7 @@ func updateGoogleForm(progConfig ProgramConfig, formConfig FormConfig, db *gorm.
 		}
 
 		if validRaceTime {
-			entryName := fmt.Sprintf("%s - %s", race.Name, race.Date)
+			entryName := fmt.Sprintf("%s: %s", race.Name, race.Date)
 			userList := *formConfig.getUserTable(race)
 
 			if formConfig.EntryLimit >= 0 {
@@ -357,24 +357,24 @@ func updateGoogleCalendar(progConfig ProgramConfig, db *gorm.DB, ctx context.Con
 		descriptionText := fmt.Sprintf("%v\n%v\nRentals Remaining: %v", descriptionTextRC, descriptionTextRental, progConfig.AllowedRentersCount-len(race.Renters))
 
 		if race.EventID != nil {
-			exisitngEvent, err := calSrv.Events.Get(progConfig.CalendarCode, *race.EventID).Do()
+			existingEvent, err := calSrv.Events.Get(progConfig.CalendarCode, *race.EventID).Do()
 			if err != nil {
 				log.Fatalf("Unable to get existing event: %v", err)
 			}
 
-			exisitngEvent.Start = &cdrStart
-			exisitngEvent.End = &cdrEnd
-			exisitngEvent.Summary = race.Name
-			exisitngEvent.Description = descriptionText
-			exisitngEvent.Attendees = maps.Values(attendees)
+			existingEvent.Start = &cdrStart
+			existingEvent.End = &cdrEnd
+			existingEvent.Summary = race.Name
+			existingEvent.Description = descriptionText
+			existingEvent.Attendees = maps.Values(attendees)
 
 			if len(progConfig.RaceLocation) > 0 {
-				exisitngEvent.Location = progConfig.RaceLocation
+				existingEvent.Location = progConfig.RaceLocation
 			}
 
-			_, err = calSrv.Events.Update(progConfig.CalendarCode, *race.EventID, exisitngEvent).Do()
+			_, err = calSrv.Events.Update(progConfig.CalendarCode, *race.EventID, existingEvent).Do()
 			if err != nil {
-				log.Fatalf("Error updating event %v: %v", exisitngEvent.Id, err)
+				log.Fatalf("Error updating event %v: %v", existingEvent.Id, err)
 			} else {
 				log.Printf("Updated event %v\n", race.Name)
 			}
