@@ -132,16 +132,19 @@ func (config ProgramConfig) getValidSheetEmails(ctx context.Context, client *htt
 	users := map[string]UserEntry{}
 
 	for _, row := range resp.Values {
-		email := strings.ToLower(strings.TrimSpace(row[0].(string)))
-		name := strings.TrimSpace(row[1].(string))
+		emails := strings.ToLower(strings.TrimSpace(row[0].(string)))
 
-		if len(email) == 0 || len(name) == 0 {
-			log.Printf("User field empty for email '%v', '%v'", email, name)
-			continue
-		} else if _, exists := users[email]; !exists {
-			users[email] = UserEntry{email, name}
-		} else {
-			log.Printf("Duplicate entry for email '%v' detected as '%v'", email, name)
+		for _, email := range strings.Split(emails, ";") {
+			name := strings.TrimSpace(row[1].(string))
+
+			if len(email) == 0 || len(name) == 0 {
+				log.Printf("User field empty for email '%v', '%v'", email, name)
+				continue
+			} else if _, exists := users[email]; !exists {
+				users[email] = UserEntry{email, name}
+			} else {
+				log.Printf("Duplicate entry for email '%v' detected as '%v'", email, name)
+			}
 		}
 	}
 
