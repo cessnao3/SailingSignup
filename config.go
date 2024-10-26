@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -30,6 +31,7 @@ type ProgramConfig struct {
 	AllowedRentersCount  int
 	AllowedUsersSheetID  string
 	RaceLocation         string
+	RentalMembershipYear int
 }
 
 func (config ProgramConfig) eventDuration() time.Duration {
@@ -123,7 +125,7 @@ func (config ProgramConfig) getValidSheetEmails(ctx context.Context, client *htt
 		log.Fatalf("Unable to retrieve Sheets client: %v", err)
 	}
 
-	readRange := "A:B"
+	readRange := "A:C"
 	resp, err := srv.Spreadsheets.Values.Get(config.AllowedUsersSheetID, readRange).Do()
 	if err != nil {
 		log.Fatalf("Unable to retrieve data from sheet: %v", err)
@@ -133,10 +135,18 @@ func (config ProgramConfig) getValidSheetEmails(ctx context.Context, client *htt
 
 	for _, row := range resp.Values {
 		emails := strings.ToLower(strings.TrimSpace(row[0].(string)))
+		name := strings.TrimSpace(row[1].(string))
+		membership_year, err := strconv.Atoi(strings.TrimSpace(row[2].(string)))
+		if err != nil {
+			log.Fatalf("Unable to convert membership year for %v", row)
+		}
+
+		if membership_year < config.RentalMembershipYear {
+			log.Printf("Skipping %v due to membership year %v < %v", name, membership_year, config.RentalMembershipYear)
+			continue
+		}
 
 		for _, email := range strings.Split(emails, ";") {
-			name := strings.TrimSpace(row[1].(string))
-
 			if len(email) == 0 || len(name) == 0 {
 				log.Printf("User field empty for email '%v', '%v'", email, name)
 				continue
