@@ -4,7 +4,7 @@
 *.dll
 *.so
 *.dylib
-race_signup_db
+sailingdb
 
 # Test binary, built with `go test -c`
 *.test

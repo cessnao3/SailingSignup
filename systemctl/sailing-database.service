@@ -3,7 +3,7 @@ Description=Runs Sailing Database Update
 Wants=sailing-database.timer
 
 [Service]
-ExecStart=<EXEPATH>/race_signup_db
+ExecStart=<EXEPATH>/sailingdb
 WorkingDirectory=<DATAPATH>
 User=<USER>
 
