@@ -59,7 +59,7 @@ func (config ProgramConfig) eventStartOffset() time.Duration {
 }
 
 func (config ProgramConfig) dbFile() string {
-	return path.Join(config.DataFolder, "race_signup.sqlite")
+	return path.Join(config.DataFolder, "db.sqlite")
 }
 
 func (config ProgramConfig) racesFile() string {
